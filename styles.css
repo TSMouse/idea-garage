@@ -423,3 +423,111 @@
 .idea-garage-about a {
 	color: var(--text-accent);
 }
+
+/* Tasks */
+.idea-garage-week {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 4px;
+	margin: var(--size-4-2) 0 var(--size-4-3);
+}
+
+.idea-garage-day {
+	text-align: center;
+	padding: 6px 2px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.idea-garage-day.is-today {
+	border-color: var(--ig-yellow);
+}
+
+.idea-garage-day.has-tasks .idea-garage-day-count {
+	color: #1a1a1a;
+	background: var(--ig-yellow);
+	border-radius: 999px;
+	display: inline-block;
+	min-width: 18px;
+	font-weight: 700;
+}
+
+.idea-garage-day-name {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.idea-garage-day-num {
+	font-weight: 700;
+}
+
+.idea-garage-day-count {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+.idea-garage-group-title {
+	font-weight: 700;
+	font-size: var(--font-ui-small);
+	margin-top: var(--size-4-3);
+}
+
+.idea-garage-group-title.group-overdue {
+	color: var(--color-red);
+}
+
+.idea-garage-task {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-2);
+	padding: 6px var(--size-4-2);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+}
+
+.idea-garage-task input[type="checkbox"] {
+	margin-top: 3px;
+}
+
+.idea-garage-task-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.idea-garage-task-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-top: 2px;
+	font-size: var(--font-ui-smaller);
+}
+
+.idea-garage-task-idea {
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.idea-garage-date-btn {
+	font-size: var(--font-ui-smaller);
+	padding: 0 6px;
+	height: auto;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+}
+
+.idea-garage-date-btn.is-empty {
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+.idea-garage-date-input {
+	width: 100%;
+	margin: var(--size-4-2) 0;
+}
+
+.idea-garage-quick-dates {
+	margin-bottom: var(--size-4-2);
+}

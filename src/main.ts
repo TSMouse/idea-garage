@@ -1,6 +1,7 @@
 import { Notice, Plugin, TFile, debounce } from "obsidian";
 import { Garage } from "./garage";
-import { CaptureModal, NewIdeaModal, ScoreModal } from "./modals";
+import { AddTaskModal, CaptureModal, DateModal, NewIdeaModal, ScoreModal } from "./modals";
+import { GarageTask, addTask, completeTask, setDue } from "./tasks";
 import { Idea, QUESTIONS } from "./scoring";
 import { DEFAULT_SETTINGS, DEFAULT_WEIGHTS, IdeaGarageSettingTab, IdeaGarageSettings } from "./settings";
 import { EMPTY_PROFILE, PRESETS, SetupModal, writeProfileNotes } from "./setup";
@@ -24,6 +25,7 @@ export default class IdeaGaragePlugin extends Plugin {
 
 		this.addCommand({ id: "setup", name: "Set up my garage", callback: () => this.openSetup() });
 		this.addCommand({ id: "open-dashboard", name: "Open dashboard", callback: () => void this.activateView() });
+		this.addCommand({ id: "open-tasks", name: "Open tasks", callback: () => void this.openTasks() });
 		this.addCommand({ id: "new-idea", name: "Park a new idea", callback: () => this.openNewIdea() });
 		this.addCommand({ id: "quick-idea", name: "Quick idea to inbox", callback: () => this.openCapture() });
 		this.addCommand({
@@ -53,6 +55,7 @@ export default class IdeaGaragePlugin extends Plugin {
 			...saved,
 			weights: { ...DEFAULT_WEIGHTS, ...(saved?.weights ?? {}) },
 			profile: { ...EMPTY_PROFILE, ...(saved?.profile ?? {}) },
+			taskStatuses: saved?.taskStatuses?.length ? saved.taskStatuses : DEFAULT_SETTINGS.taskStatuses,
 		};
 	}
 
@@ -106,6 +109,34 @@ export default class IdeaGaragePlugin extends Plugin {
 			await this.activateView();
 			this.refreshViews();
 		}).open();
+	}
+
+	openAddTask(active: Idea[]): void {
+		new AddTaskModal(this.app, active, async (idea, text, date) => {
+			await addTask(this.app, idea, text, date);
+			new Notice(`✅ Task added to "${idea.name}".`);
+			this.refreshViews();
+		}).open();
+	}
+
+	openDate(task: GarageTask): void {
+		new DateModal(this.app, task.text, task.due, async (date) => {
+			const ok = await setDue(this.app, task, date);
+			if (!ok) new Notice("That task changed in the meantime. Please try again.");
+			this.refreshViews();
+		}).open();
+	}
+
+	async finishTask(task: GarageTask): Promise<void> {
+		const ok = await completeTask(this.app, task);
+		new Notice(ok ? `🎉 Done: ${task.text}` : "That task changed in the meantime. Please try again.");
+		this.refreshViews();
+	}
+
+	async openTasks(): Promise<void> {
+		await this.activateView();
+		const view = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0]?.view;
+		if (view instanceof DashboardView) view.showTab("tasks");
 	}
 
 	openCapture(): void {

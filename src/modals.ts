@@ -190,3 +190,95 @@ export class ScoreModal extends Modal {
 		this.contentEl.empty();
 	}
 }
+
+/** Pick a date for a task (or remove it). */
+export class DateModal extends Modal {
+	private value: string;
+
+	constructor(app: App, private label: string, current: string | undefined, private onPick: (date: string | null) => Promise<void>) {
+		super(app);
+		this.value = current ?? window.moment().format("YYYY-MM-DD");
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		this.setTitle("📅 When?");
+		contentEl.createEl("p", { cls: "idea-garage-hint", text: this.label });
+		const input = contentEl.createEl("input", { type: "date", cls: "idea-garage-date-input" });
+		input.value = this.value;
+		input.addEventListener("change", () => (this.value = input.value));
+
+		const quick = contentEl.createDiv({ cls: "idea-garage-actions idea-garage-quick-dates" });
+		const add = (text: string, days: number) => {
+			const b = quick.createEl("button", { text });
+			b.addEventListener("click", () => {
+				this.value = window.moment().add(days, "days").format("YYYY-MM-DD");
+				input.value = this.value;
+			});
+		};
+		add("Today", 0);
+		add("Tomorrow", 1);
+		add("In 3 days", 3);
+		add("Next week", 7);
+
+		new Setting(contentEl)
+			.addButton((b) => b.setButtonText("No date").onClick(async () => {
+				await this.onPick(null);
+				this.close();
+			}))
+			.addButton((b) => b.setButtonText("Save").setCta().onClick(async () => {
+				if (!/^\d{4}-\d{2}-\d{2}$/.test(this.value)) return;
+				await this.onPick(this.value);
+				this.close();
+			}));
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
+}
+
+/** Add a task to one of the active ideas. */
+export class AddTaskModal extends Modal {
+	private ideaPath: string;
+	private text = "";
+	private date = "";
+
+	constructor(app: App, private ideas: Idea[], private onAdd: (idea: Idea, text: string, date: string | null) => Promise<void>) {
+		super(app);
+		this.ideaPath = ideas[0]?.file.path ?? "";
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		this.setTitle("➕ New task");
+		if (this.ideas.length === 0) {
+			contentEl.createEl("p", { cls: "idea-garage-hint", text: "Tasks belong to ideas that are in progress or live. Set an idea's status in its Score window first." });
+			return;
+		}
+		new Setting(contentEl).setName("For which idea?").addDropdown((d) => {
+			this.ideas.forEach((i) => d.addOption(i.file.path, i.name));
+			d.setValue(this.ideaPath).onChange((v) => (this.ideaPath = v));
+		});
+		new Setting(contentEl).setName("What needs doing?").addText((t) => {
+			t.setPlaceholder("Write the Etsy listing texts").onChange((v) => (this.text = v));
+			window.setTimeout(() => t.inputEl.focus(), 0);
+		});
+		new Setting(contentEl).setName("When? (optional)").addText((t) => {
+			t.inputEl.type = "date";
+			t.onChange((v) => (this.date = v));
+		});
+		new Setting(contentEl).addButton((b) =>
+			b.setButtonText("Add task").setCta().onClick(async () => {
+				const idea = this.ideas.find((i) => i.file.path === this.ideaPath);
+				if (!idea || !this.text.trim()) return;
+				await this.onAdd(idea, this.text, this.date || null);
+				this.close();
+			})
+		);
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
+}

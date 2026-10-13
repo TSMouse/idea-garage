@@ -10,6 +10,7 @@ export interface IdeaGarageSettings {
 	profile: Profile;
 	setupDone: boolean;
 	checklistHidden: boolean;
+	taskStatuses: string[];
 }
 
 export const DEFAULT_WEIGHTS: Record<ScoreKey, number> = {
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: IdeaGarageSettings = {
 	profile: { ...EMPTY_PROFILE },
 	setupDone: false,
 	checklistHidden: false,
+	taskStatuses: ["in progress", "live"],
 };
 
 export class IdeaGarageSettingTab extends PluginSettingTab {
@@ -115,6 +117,16 @@ export class IdeaGarageSettingTab extends PluginSettingTab {
 		);
 
 		new Setting(containerEl).setName("Dashboard").setHeading();
+		new Setting(containerEl)
+			.setName("Which ideas show up in Tasks")
+			.setDesc("Ideas with these statuses share one task list. Separate with commas.")
+			.addText((t) =>
+				t.setValue(this.plugin.settings.taskStatuses.join(", ")).onChange(async (v) => {
+					this.plugin.settings.taskStatuses = v.split(",").map((s) => s.trim()).filter(Boolean);
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
+				})
+			);
 		new Setting(containerEl)
 			.setName("Show the getting-started checklist")
 			.addToggle((t) =>

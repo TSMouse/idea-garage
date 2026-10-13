@@ -1,13 +1,15 @@
 import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type IdeaGaragePlugin from "./main";
 import { Idea, easyWin, fastRevenue, maxScore, missingCount, totalScore } from "./scoring";
+import { Bucket, GarageTask, bucketOf, collectTasks, today } from "./tasks";
 
 export const VIEW_TYPE = "idea-garage-dashboard";
 
-type Tab = "queue" | "easy" | "fast" | "gut" | "inbox";
+type Tab = "queue" | "tasks" | "easy" | "fast" | "gut" | "inbox";
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
 	{ id: "queue", label: "🏁 Queue", hint: "Your best idea overall. Gut picks always sit on top." },
+	{ id: "tasks", label: "📅 Tasks", hint: "One list for every idea that is in progress or live. Tick tasks off here." },
 	{ id: "easy", label: "⚡ Easy wins", hint: "Fastest and cheapest to launch. Great for momentum." },
 	{ id: "fast", label: "💶 Fast revenue", hint: "The ideas most likely to bring money in soon." },
 	{ id: "gut", label: "⭐ Gut picks", hint: "Ideas you chose on feeling, with your reason." },
@@ -19,6 +21,7 @@ const CLOSED = ["dropped", "paused"];
 export class DashboardView extends ItemView {
 	private tab: Tab = "queue";
 	private rendering = false;
+	private pending = false;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: IdeaGaragePlugin) {
 		super(leaf);
@@ -36,15 +39,26 @@ export class DashboardView extends ItemView {
 		return "lightbulb";
 	}
 
+	showTab(tab: Tab): void {
+		this.tab = tab;
+		void this.render();
+	}
+
 	async onOpen(): Promise<void> {
 		await this.render();
 	}
 
 	async render(): Promise<void> {
-		if (this.rendering) return;
+		if (this.rendering) {
+			this.pending = true;
+			return;
+		}
 		this.rendering = true;
 		try {
-			await this.draw();
+			do {
+				this.pending = false;
+				await this.draw();
+			} while (this.pending);
 		} finally {
 			this.rendering = false;
 		}
@@ -54,6 +68,8 @@ export class DashboardView extends ItemView {
 		const root = this.contentEl;
 		const ideas = await this.plugin.garage.loadIdeas();
 		const inbox = await this.plugin.garage.inboxItems();
+		const tasks = await collectTasks(this.app, ideas, this.plugin.settings.taskStatuses);
+		const urgent = tasks.filter((t) => ["overdue", "today"].includes(bucketOf(t))).length;
 		root.empty();
 		root.addClass("idea-garage");
 
@@ -71,7 +87,8 @@ export class DashboardView extends ItemView {
 		// Tabs
 		const tabs = root.createDiv({ cls: "idea-garage-tabs" });
 		for (const t of TABS) {
-			const label = t.id === "inbox" && inbox.length ? `${t.label} (${inbox.length})` : t.label;
+			const label =
+				t.id === "inbox" && inbox.length ? `${t.label} (${inbox.length})` : t.id === "tasks" && urgent ? `${t.label} (${urgent})` : t.label;
 			const el = tabs.createEl("button", { text: label, cls: "idea-garage-tab" });
 			if (t.id === this.tab) el.addClass("is-active");
 			el.addEventListener("click", () => {
@@ -85,6 +102,11 @@ export class DashboardView extends ItemView {
 
 		if (this.tab === "inbox") {
 			this.drawInbox(list, inbox);
+			return;
+		}
+
+		if (this.tab === "tasks") {
+			this.drawTasks(list, tasks, ideas);
 			return;
 		}
 
@@ -186,6 +208,78 @@ export class DashboardView extends ItemView {
 		}
 		const score = bottom.createEl("button", { cls: "idea-garage-score-btn", text: value === undefined ? "Score me" : "Score" });
 		score.addEventListener("click", () => this.plugin.openScore(idea));
+	}
+
+	private drawTasks(list: HTMLElement, tasks: GarageTask[], ideas: Idea[]): void {
+		const active = ideas.filter((i) => this.plugin.settings.taskStatuses.includes(i.status));
+		const top = list.createDiv({ cls: "idea-garage-actions" });
+		this.button(top, "plus", "New task", () => this.plugin.openAddTask(active), true);
+
+		if (active.length === 0) {
+			this.emptyText(
+				list,
+				"No ideas in progress yet.",
+				`Tasks show up here once an idea's status is ${this.plugin.settings.taskStatuses.join(" or ")}. Open an idea's Score window and change its status.`
+			);
+			return;
+		}
+
+		// Week strip: the next 7 days with how many tasks are due.
+		const week = list.createDiv({ cls: "idea-garage-week" });
+		for (let d = 0; d < 7; d++) {
+			const date = window.moment().add(d, "days");
+			const iso = date.format("YYYY-MM-DD");
+			const count = tasks.filter((t) => t.due === iso).length;
+			const day = week.createDiv({ cls: `idea-garage-day${d === 0 ? " is-today" : ""}${count ? " has-tasks" : ""}` });
+			day.createDiv({ cls: "idea-garage-day-name", text: d === 0 ? "Today" : date.format("ddd") });
+			day.createDiv({ cls: "idea-garage-day-num", text: date.format("D") });
+			day.createDiv({ cls: "idea-garage-day-count", text: count ? `${count}` : "·" });
+		}
+
+		if (tasks.length === 0) {
+			this.emptyText(list, "Nothing to do. 🎉", "All tasks of your active ideas are done, or their To Do Lists are still empty.");
+			return;
+		}
+
+		const groups: { id: Bucket; title: string }[] = [
+			{ id: "overdue", title: "⚠️ Overdue" },
+			{ id: "today", title: "📍 Today" },
+			{ id: "week", title: "🗓️ This week" },
+			{ id: "later", title: "⏭️ Later" },
+			{ id: "nodate", title: "📝 No date yet" },
+		];
+		for (const g of groups) {
+			const items = tasks.filter((t) => bucketOf(t) === g.id).sort((a, b) => (a.due ?? "").localeCompare(b.due ?? ""));
+			if (!items.length) continue;
+			list.createDiv({ cls: `idea-garage-group-title group-${g.id}`, text: `${g.title} (${items.length})` });
+			for (const t of items) this.taskRow(list, t);
+		}
+	}
+
+	private taskRow(parent: HTMLElement, task: GarageTask): void {
+		const row = parent.createDiv({ cls: "idea-garage-task" });
+		const box = row.createEl("input", { type: "checkbox", cls: "task-list-item-checkbox" });
+		box.addEventListener("change", () => void this.plugin.finishTask(task));
+
+		const body = row.createDiv({ cls: "idea-garage-task-body" });
+		body.createDiv({ cls: "idea-garage-task-text", text: task.text });
+		const meta = body.createDiv({ cls: "idea-garage-task-meta" });
+		const idea = meta.createEl("a", { cls: "idea-garage-task-idea", text: task.idea.name });
+		idea.addEventListener("click", () => void this.app.workspace.getLeaf(false).openFile(task.file, { eState: { line: task.line } }));
+
+		const label = task.due
+			? task.due === today()
+				? "📅 Today"
+				: `📅 ${window.moment(task.due).format("ddd D MMM")}`
+			: "📅 Add date";
+		const date = meta.createEl("button", { cls: `idea-garage-date-btn${task.due ? "" : " is-empty"}`, text: label });
+		date.addEventListener("click", () => this.plugin.openDate(task));
+	}
+
+	private emptyText(parent: HTMLElement, title: string, text: string): void {
+		const box = parent.createDiv({ cls: "idea-garage-empty" });
+		box.createDiv({ cls: "idea-garage-empty-title", text: title });
+		box.createDiv({ text });
 	}
 
 	private drawInbox(list: HTMLElement, items: string[]): void {
