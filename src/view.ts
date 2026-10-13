@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type IdeaGaragePlugin from "./main";
 import { Idea, easyWin, fastRevenue, maxScore, missingCount, totalScore } from "./scoring";
 import { Bucket, GarageTask, bucketOf, collectTasks, today } from "./tasks";
+import type { InboxItem } from "./garage";
 
 export const VIEW_TYPE = "idea-garage-dashboard";
 
@@ -147,7 +148,7 @@ export class DashboardView extends ItemView {
 	}
 
 	/** Getting-started checklist: shows what the garage still needs from you. */
-	private checklist(root: HTMLElement, ideas: Idea[], inbox: string[]): void {
+	private checklist(root: HTMLElement, ideas: Idea[], inbox: InboxItem[]): void {
 		if (this.plugin.settings.checklistHidden) return;
 		const unscored = ideas.filter((i) => missingCount(i) > 0 && !CLOSED.includes(i.status)).length;
 		const steps: { done: boolean; label: string; action?: [string, () => void] }[] = [
@@ -282,16 +283,16 @@ export class DashboardView extends ItemView {
 		box.createDiv({ text });
 	}
 
-	private drawInbox(list: HTMLElement, items: string[]): void {
+	private drawInbox(list: HTMLElement, items: InboxItem[]): void {
 		if (items.length === 0) {
 			this.empty(list, "Your inbox is empty.", "Use 📥 Quick idea whenever something pops into your head. Score it later.");
 			return;
 		}
 		for (const item of items) {
 			const row = list.createDiv({ cls: "idea-garage-card idea-garage-inbox-item" });
-			row.createSpan({ cls: "idea-garage-name", text: item });
+			row.createSpan({ cls: "idea-garage-name", text: item.name });
 			const move = row.createEl("button", { cls: "idea-garage-score-btn", text: "Move into garage" });
-			move.addEventListener("click", () => this.plugin.openNewIdea(item));
+			move.addEventListener("click", () => this.plugin.openNewIdea(item.name, item.raw));
 		}
 	}
 

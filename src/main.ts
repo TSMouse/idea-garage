@@ -82,10 +82,10 @@ export default class IdeaGaragePlugin extends Plugin {
 		}
 	}
 
-	openNewIdea(prefill = ""): void {
+	openNewIdea(prefill = "", inboxRaw = ""): void {
 		new NewIdeaModal(this.app, prefill, async (name, pitch) => {
 			const card = await this.garage.createIdea(name, pitch);
-			if (prefill) await this.garage.markMoved(prefill, card.basename);
+			if (inboxRaw) await this.garage.markMoved(inboxRaw, card.basename);
 			await this.app.workspace.getLeaf(false).openFile(card);
 			new Notice(`🅿️ "${card.basename}" is parked. Click Score in the Idea Garage panel when you're ready.`);
 			this.refreshViews();

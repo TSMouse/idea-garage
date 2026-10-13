@@ -1,6 +1,11 @@
 import { App, TFile, TFolder, normalizePath } from "obsidian";
 import { Idea, QUESTIONS, readScore } from "./scoring";
 
+export interface InboxItem {
+	raw: string;
+	name: string;
+}
+
 export const SECTIONS: { name: string; emoji: string; question: string; prompts: string[] }[] = [
 	{ name: "Business Plan", emoji: "💼", question: "What is it, who is it for, and why would they pay?", prompts: ["What it is", "Who it's for", "Why they would pay", "How it makes money"] },
 	{ name: "Structure Plan", emoji: "🏗️", question: "How will I build and run it?", prompts: ["How I build it", "How it runs", "What runs without me", "Tools"] },
@@ -156,17 +161,18 @@ export class Garage {
 	}
 
 	/** Ideas written in the Inbox table (rows with something in the "Idea" column). */
-	async inboxItems(): Promise<string[]> {
+	async inboxItems(): Promise<InboxItem[]> {
 		const file = this.app.vault.getAbstractFileByPath(this.inboxPath());
 		if (!(file instanceof TFile)) return [];
 		const text = await this.app.vault.cachedRead(file);
-		const items: string[] = [];
+		const items: InboxItem[] = [];
 		for (const line of text.split("\n")) {
 			const cells = this.tableCells(line);
 			if (!cells || cells.length < 2) continue;
 			const idea = cells[1];
 			if (!idea || idea === "Idea" || /^-+$/.test(idea)) continue;
-			items.push(idea);
+			const bold = idea.match(/\*\*(.+?)\*\*/);
+			items.push({ raw: idea, name: cleanName(bold ? bold[1] : idea) });
 		}
 		return items;
 	}
@@ -244,7 +250,7 @@ export class Garage {
 			const idx = lines.findIndex((l) => this.tableCells(l)?.[1] === idea);
 			if (idx !== -1) lines.splice(idx, 1);
 			const entry = `- ${today()} → [[${cardName}]]`;
-			const heading = lines.findIndex((l) => /^##\s.*Moved into the garage/i.test(l));
+			const heading = lines.findIndex((l) => /^#{2,3}\s.*(Moved into the garage|Promoted so far)/i.test(l));
 			if (heading !== -1) {
 				let insertAt = heading + 1;
 				while (insertAt < lines.length && !/^#/.test(lines[insertAt])) insertAt++;
