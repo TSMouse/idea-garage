@@ -1,0 +1,19 @@
+{
+  "name": "idea-garage",
+  "version": "0.2.0",
+  "description": "Park your ideas, score them with 8 simple questions, and see which one to start first.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": ["obsidian", "ideas", "productivity"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "latest",
+    "tslib": "^2.8.0",
+    "typescript": "^5.6.0"
+  }
+}
