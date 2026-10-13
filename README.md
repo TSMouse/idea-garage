@@ -17,6 +17,7 @@ Idea Garage is a free Obsidian plugin for people with too many ideas, or no idea
   - **⚡ Easy wins:** fastest and cheapest to launch
   - **💶 Fast revenue:** most likely to bring money in soon
   - **⭐ Gut picks:** ideas you chose on feeling (with your reason written down)
+- **📅 Tasks:** one shared, calendar-style task list for every idea that is in progress or live. See what's overdue, due today and this week, tick tasks off, and set dates in one click. Dates use the `📅 YYYY-MM-DD` format, so they work with the Tasks plugin too.
 - **🤖 No ideas yet?** The setup wizard copies an AI prompt that already knows your answers. Paste it into ChatGPT, Claude or Gemini.
 
 ## 🚀 Getting started
@@ -30,6 +31,7 @@ Idea Garage is a free Obsidian plugin for people with too many ideas, or no idea
 - *Idea Garage: Set up my garage*
 - *Idea Garage: Park a new idea*
 - *Idea Garage: Quick idea to inbox*
+- *Idea Garage: Open tasks*
 - *Idea Garage: Score this idea* (when an idea card is open)
 
 ### Settings
